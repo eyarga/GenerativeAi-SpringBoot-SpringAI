@@ -13,7 +13,7 @@ About the image generation, I used the configuration:
 - Image size `"1024x1024"`.
 
 Below, an image generated with the prompt : "St Laurent in Canada"
-![Screenshot of the app](images/St_laurent_Quebec.jpeg)
+![Screenshot of the app](src/images/St_laurent_Quebec.jpeg)
 
 ## Installation
 
