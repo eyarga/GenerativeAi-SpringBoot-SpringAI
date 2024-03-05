@@ -69,15 +69,6 @@ public class SpringAIService {
             I desire only one creation. Give me as JSON format: prompt, n, size, model.
            """);
 
-        
-        // PromptTemplate promptTemplate = new PromptTemplate("""
-        //          I am really board from online memes. Can you create me a prompt about {topic}.
-        //          Elevate the given topic. Make it classy.
-        //          Make a resolution of "1024x1024", but ensure that it is presented in json it need to be string.
-        //          Use the model dall-e-3.
-        //          I desire only one creation. Give me as JSON format: prompt, n, size, model.
-        //         """);
-
         promptTemplate.add("topic", topic);
         String imagePrompt = this.aiClient.call(promptTemplate.create()).getResults().get(0).getOutput().getContent();
 
