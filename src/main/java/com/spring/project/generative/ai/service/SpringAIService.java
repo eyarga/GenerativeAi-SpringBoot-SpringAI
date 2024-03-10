@@ -4,7 +4,6 @@ import com.spring.project.generative.ai.model.GeneratedImage;
 import org.springframework.ai.chat.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.openai.OpenAiChatClient;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.*;
@@ -23,15 +22,17 @@ import java.util.Map;
 @Service
 public class SpringAIService {
 
-    @Autowired
-    OpenAiChatClient aiClient;
-
+    private final OpenAiChatClient aiClient;
     @Value("${spring.ai.openai.apikey}")
-    private String apiKey;
-
+    private final String apiKey;
     @Value("${spring.ai.openai.imageUrl}")
-    private String openAIImageUrl;
+    private final String openAIImageUrl;
 
+    public SpringAIService(OpenAiChatClient aiClient, @Value("${spring.ai.openai.apikey}") String apiKey, @Value("${spring.ai.openai.imageUrl}") String openAIImageUrl) {
+        this.aiClient = aiClient;
+        this.apiKey = apiKey;
+        this.openAIImageUrl = openAIImageUrl;
+    }
 
     public String getJoke(String topic) {
         PromptTemplate promptTemplate = new PromptTemplate("""
@@ -58,34 +59,44 @@ public class SpringAIService {
 
 
     public InputStreamResource getImage(@RequestParam(name = "topic") String topic) throws URISyntaxException {
-
-        PromptTemplate promptTemplate = new PromptTemplate("""
-            Can you create me a prompt about {topic}.
-            Make a resolution of "1024x1024", but ensure that it is presented in json it need to be string.
-            Generate a high-quality image of an animal using dalle-3, showcasing only one-half of the animal in a visually appealing and realistic manner. 
-            Ensure that the generated image accurately represents the chosen animal species and demonstrates the model's proficiency in capturing fine details, textures, and colors. 
-            The focus should be on producing an aesthetically pleasing and well-composed composition that highlights the chosen animal with creativity and realism.
-            Use the model dall-e-3.
-            I desire only one creation. Give me as JSON format: prompt, n, size, model.
-           """);
-
-        promptTemplate.add("topic", topic);
+        PromptTemplate promptTemplate = createPromptTemplate(topic);
         String imagePrompt = this.aiClient.call(promptTemplate.create()).getResults().get(0).getOutput().getContent();
 
+        // Create HttpEntity with the Map and Headers
+        HttpEntity<String> httpEntity = createHttpEntity(imagePrompt);
+
+        byte[] imageBytes = getImageUrl(httpEntity);
+        assert imageBytes != null;
+        return new InputStreamResource(new java.io.ByteArrayInputStream(imageBytes));
+    }
+
+    private HttpEntity<String> createHttpEntity(String imagePrompt) {
         // Create HttpHeaders and set content type
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.add("Authorization", "Bearer " + apiKey);
 
         // Create HttpEntity with the Map and Headers
-        HttpEntity<String> httpEntity = new HttpEntity<>(imagePrompt, headers);
+        return new HttpEntity<>(imagePrompt, headers);
+    }
 
+    private byte[] getImageUrl(HttpEntity<String> httpEntity) throws URISyntaxException {
         RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<GeneratedImage> responseEntity = restTemplate.exchange(openAIImageUrl, HttpMethod.POST, httpEntity, GeneratedImage.class);
         GeneratedImage generatedImage = responseEntity.getBody();
         String imageUrl = generatedImage != null ? generatedImage.getData().get(0).getUrl() : null;
-        byte[] imageBytes = imageUrl != null ? restTemplate.getForObject(new URI(imageUrl), byte[].class) : null;
-        assert imageBytes != null;
-        return new InputStreamResource(new java.io.ByteArrayInputStream(imageBytes));
+        return imageUrl != null ? restTemplate.getForObject(new URI(imageUrl), byte[].class) : null;
+    }
+
+    private PromptTemplate createPromptTemplate(String topic) {
+        PromptTemplate promptTemplate = new PromptTemplate("""
+                 I am really board from online memes. Can you create me a prompt about {topic}.
+                 Elevate the given topic. Make it classy.
+                 Make a resolution of "1024x1024", but ensure that it is presented in json it need to be string.
+                 Use the model dall-e-3.
+                 I desire only one creation. Give me as JSON format: prompt, n, size, model.
+                """);
+        promptTemplate.add("topic", topic);
+        return promptTemplate;
     }
 }
